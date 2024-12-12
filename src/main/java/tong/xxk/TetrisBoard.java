@@ -18,6 +18,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
     public TetrisBoard() {
         initBoard();
         initGame();
+        setPreferredSize(new Dimension(Config.BOARD_WIDTH * Config.BLOCK_SIZE, Config.BOARD_HEIGHT * Config.BLOCK_SIZE));
     }
 
     /**
@@ -45,10 +46,11 @@ public class TetrisBoard extends JPanel implements ActionListener {
     private void initGame() {
         board = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
         createNewPiece();
+        // 确保定时器启动
+        timer.start();
     }
     /**
      * 创建一个新的四联立方块
-     *
      * 此方法用于在游戏板上生成一个新的四联立方块，并尝试将其放置在游戏板的中心顶部
      * 如果无法放置，表明游戏板上已经没有足够的空间，游戏结束
      */
@@ -113,10 +115,10 @@ public class TetrisBoard extends JPanel implements ActionListener {
         int rows = shape.length;
         int cols = shape[0].length;
         // 打印方块的位置和形状，用于调试
-        System.out.println("Drawing piece at (" + x + ", " + y + ") with shape:");
-        for (int[] row : shape) {
-            System.out.println(Arrays.toString(row));
-        }
+//        System.out.println("Drawing piece at (" + x + ", " + y + ") with shape:");
+//        for (int[] row : shape) {
+//            System.out.println(Arrays.toString(row));
+//        }
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
@@ -153,13 +155,13 @@ public class TetrisBoard extends JPanel implements ActionListener {
      * @param newY 方块的新y坐标
      * @return 如果移动成功则返回true，否则返回false
      */
-    private boolean tryMove(Terominoe newPiece, int newX, int newY) {
+    private boolean tryMove(Terominoe newPiece, int newX, int newY, boolean isRotation) {
         int[][] shape = newPiece.getShape();
         for (int i = 0; i < shape.length; i++) {
             for (int j = 0; j < shape[i].length; j++) {
                 if (shape[i][j] != 0) {
                     int x = newX + j;
-                    int y = newY + i; // 修改为 +i
+                    int y = newY + i;
                     if (x < 0 || x >= Config.BOARD_WIDTH || y < 0 || y >= Config.BOARD_HEIGHT) {
                         return false;
                     }
@@ -175,6 +177,12 @@ public class TetrisBoard extends JPanel implements ActionListener {
         repaint();
         return true;
     }
+
+    // 重载 tryMove 方法，不带 isRotation 参数，默认为 false
+    private boolean tryMove(Terominoe newPiece, int newX, int newY) {
+        return tryMove(newPiece, newX, newY, false);
+    }
+
     /**
      * 处理方块下落一行的动作
      * 如果方块无法下落，则调用pieceDropped方法
@@ -182,7 +190,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         oneLineDown();
-        System.out.println("Timer tick"); // 添加调试信息
+//        System.out.println("Timer tick"); // 添加调试信息
     }
     /**
      * 方块下落一行的方法
@@ -222,6 +230,10 @@ public class TetrisBoard extends JPanel implements ActionListener {
      */
     private void removeFullLines() {
         int numFullLines = 0;
+        int[] fullLines = new int[Config.BOARD_HEIGHT];
+        int fullLineCount = 0;
+
+        // 记录所有满行的索引
         for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
             boolean lineIsFull = true;
             for (int j = 0; j < Config.BOARD_WIDTH; j++) {
@@ -231,16 +243,41 @@ public class TetrisBoard extends JPanel implements ActionListener {
                 }
             }
             if (lineIsFull) {
+                fullLines[fullLineCount++] = i;
                 numFullLines++;
-                for (int k = i; k < Config.BOARD_HEIGHT - 1; k++) {
-                    System.arraycopy(board[k + 1], 0, board[k], 0, Config.BOARD_WIDTH);
-                }
             }
         }
+
+        // 从下往上移动上方的方块
         if (numFullLines > 0) {
+            int shiftDownFrom = Config.BOARD_HEIGHT - 1;
+            for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+                boolean isFullLine = false;
+                for (int j = 0; j < fullLineCount; j++) {
+                    if (i == fullLines[j]) {
+                        isFullLine = true;
+                        break;
+                    }
+                }
+                if (!isFullLine) {
+                    board[shiftDownFrom] = board[i];
+                    shiftDownFrom--;
+                }
+            }
+
+            // 清除剩余的行
+            for (int i = shiftDownFrom; i >= 0; i--) {
+                Arrays.fill(board[i], 0);
+            }
+
             repaint();
         }
     }
+
+
+
+
+
     /**
      * 处理键盘事件的方法
      * 根据用户按下的键，执行相应的动作
@@ -257,10 +294,10 @@ public class TetrisBoard extends JPanel implements ActionListener {
                     tryMove(currentPiece, currentPiece.getX() + 1, currentPiece.getY());
                     break;
                 case KeyEvent.VK_DOWN:
-                    tryMove(currentPiece.rotateRight(), currentPiece.getX(), currentPiece.getY());
+                    tryRotateRight();
                     break;
                 case KeyEvent.VK_UP:
-                    tryMove(currentPiece.rotateLeft(), currentPiece.getX(), currentPiece.getY());
+                    tryRotateLeft();
                     break;
                 case KeyEvent.VK_SPACE:
                     dropDown();
@@ -268,6 +305,53 @@ public class TetrisBoard extends JPanel implements ActionListener {
             }
         }
     }
+    private void tryRotateRight() {
+        Terominoe rotatedPiece = currentPiece.rotateRight();
+        int newX = currentPiece.getX();
+        int newY = currentPiece.getY();
+
+        // Check if the rotated piece can fit in the current position
+        if (tryMove(rotatedPiece, newX, newY, true)) {
+            return;
+        }
+
+        // Try moving left or right to fit the rotated piece
+        if (newX > 0 && tryMove(rotatedPiece, newX - 1, newY, true)) {
+            return;
+        }
+        if (newX < Config.BOARD_WIDTH - 1 && tryMove(rotatedPiece, newX + 1, newY, true)) {
+            return;
+        }
+
+        // Try moving down to fit the rotated piece
+        if (newY < Config.BOARD_HEIGHT - 1 && tryMove(rotatedPiece, newX, newY + 1, true)) {
+            return;
+        }
+    }
+
+    private void tryRotateLeft() {
+        Terominoe rotatedPiece = currentPiece.rotateLeft();
+        int newX = currentPiece.getX();
+        int newY = currentPiece.getY();
+
+        // Check if the rotated piece can fit in the current position
+        if (tryMove(rotatedPiece, newX, newY, true)) {
+            return;
+        }
+
+        // Try moving left or right to fit the rotated piece
+        if (newX > 0 && tryMove(rotatedPiece, newX - 1, newY, true)) {
+            return;
+        }
+        if (newX < Config.BOARD_WIDTH - 1 && tryMove(rotatedPiece, newX + 1, newY, true)) {
+            return;
+        }
+
+        // Try moving down to fit the rotated piece
+        if (newY < Config.BOARD_HEIGHT - 1 && tryMove(rotatedPiece, newX, newY + 1, true)) {
+            return;
+        }
+        }
     /**
      * 方块快速下落到底部的方法
      * 将方块快速移动到到底部的位置，并调用pieceDropped方法
