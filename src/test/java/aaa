@@ -1,0 +1,790 @@
+package tong.xxk;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.util.Arrays;
+import java.util.TimerTask;
+
+import tong.xxk.config.Config;
+
+public class TetrisBoard extends JPanel implements ActionListener {
+    private static final int DELAY = 400; // 刷新间隔
+    private final Timer timer;
+    private Tetromino currentPiece;
+//    private int[][] board;
+    private boolean gameOver;
+    private int fillRowAnimation;
+    private boolean isFallingFinished = false;
+    private boolean isStarted = false;
+    private boolean isPaused = false;
+    private int numLinesRemoved = 0;
+    private int curX = 0;
+    private int curY = 0;
+    private Shape curPiece;
+    private Tetrominoe[] board;
+
+//    public TetrisBoard() {
+//        initBoard();
+//        initGame();
+//    }
+public TetrisBoard() {
+    setFocusable(true);
+    curPiece = new Shape() {
+        @Override
+        public Rectangle getBounds() {
+            return null;
+        }
+
+        @Override
+        public Rectangle2D getBounds2D() {
+            return null;
+        }
+
+        @Override
+        public boolean contains(double x, double y) {
+            return false;
+        }
+
+        @Override
+        public boolean contains(Point2D p) {
+            return false;
+        }
+
+        @Override
+        public boolean intersects(double x, double y, double w, double h) {
+            return false;
+        }
+
+        @Override
+        public boolean intersects(Rectangle2D r) {
+            return false;
+        }
+
+        @Override
+        public boolean contains(double x, double y, double w, double h) {
+            return false;
+        }
+
+        @Override
+        public boolean contains(Rectangle2D r) {
+            return false;
+        }
+
+        @Override
+        public PathIterator getPathIterator(AffineTransform at) {
+            return null;
+        }
+
+        @Override
+        public PathIterator getPathIterator(AffineTransform at, double flatness) {
+            return null;
+        }
+    };
+    addKeyListener(new TAdapter());
+    timer = new Timer(400, this);
+    timer.start();
+    timer.addActionListener(this);{
+    };
+    timer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+            if (isFallingFinished) {
+                isFallingFinished = false;
+                newPiece();
+            } else {
+                oneLineDown();
+            }
+        }
+    }, DELAY, DELAY);
+}
+    /**
+     * 初始化游戏面板的方法
+     * 设置面板为可聚焦，添加键盘事件监听器，设置背景色和双缓冲，并启动定时器
+     * 该方法在游戏启动时被调用，用于初始化游戏界面和游戏循环
+     */
+//    private void initBoard() {
+//        // 设置面板为可聚焦，以便接收键盘事件
+//        setFocusable(true);
+//        // 添加键盘事件监听器，用于处理键盘事件
+//        addKeyListener(new TAdapter());
+//        // 设置背景色为黑色，以便在游戏面板上清晰地显示游戏元素
+//        setBackground(Color.BLACK);
+//        // 设置双缓冲，以减少图形绘制时的闪烁现象
+//        setDoubleBuffered(true);
+//        // 创建并启动定时器，用于控制游戏循环
+//        timer = new Timer(400, this);
+//        timer.start();
+//    }
+
+    /**
+     * 初始化游戏状态
+     * 此方法在游戏开始时调用，用于设置游戏的初始状态
+     */
+    private void initGame() {
+        board = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
+        currentPiece = null;
+        gameOver = false;
+        fillRowAnimation = 0;
+        createNewPiece();
+    }
+
+    /**
+     * 创建一个新的四联立方块
+     *
+     * 此方法用于在游戏板上生成一个新的四联立方块，并尝试将其放置在游戏板的中心顶部
+     * 如果无法放置，表明游戏板上已经没有足够的空间，游戏结束
+     */
+    private void createNewPiece() {
+        currentPiece = new Tetromino();
+        if (!tryMove(currentPiece, Config.BOARD_WIDTH / 2, 0)) { // 修改为 0
+            timer.stop();
+            gameOver = true;
+            fillRowAnimation = 0;
+            repaint();
+        }
+    }
+
+    /**
+     * 重绘组件中的方法，用于自定义组件的绘制
+     * @param g Graphics对象，用于绘制
+     */
+//    @Override
+//    protected void paintComponent(Graphics g) {
+//        // 调用父类的paintComponent方法，确保基本绘制工作已经完成
+//        super.paintComponent(g);
+//
+//        if (gameOver) {
+//            drawGameOverAnimation(g);
+//        } else {
+//            // 绘制游戏棋盘
+//            drawBoard(g);
+//            // 如果当前棋子不为空，则绘制当前棋子
+//            if (currentPiece != null) {
+//                drawPiece(g, currentPiece);
+//            }
+//        }
+//    }
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        doDrawing(g);
+    }
+    private void doDrawing(Graphics g) {
+        Dimension size = getSize();
+        int boardTop = (int) size.getHeight() - Config.BOARD_HEIGHT * squareHeight();
+
+        for (int i = 0; i < Config.BOARD_HEIGHT; i++) {
+            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                Tetrominoe shape = shapeAt(j, Config.BOARD_HEIGHT - i - 1);
+                if (shape != Tetrominoe.NoShape) {
+                    drawSquare(g, 0 + j * squareWidth(), boardTop + i * squareHeight(), shape);
+                }
+            }
+        }
+
+        if (curPiece.getShape() != Tetrominoe.NoShape) {
+            for (int i = 0; i < 4; i++) {
+                int x = curX + curPiece.x(i);
+                int y = curY - curPiece.y(i);
+                drawSquare(g, 0 + x * squareWidth(), boardTop + (Config.BOARD_HEIGHT - y - 1) * squareHeight(), curPiece.getShape());
+            }
+        }
+    }
+    /**
+     * 绘制游戏结束动画
+     * 自下向上填充整个游戏界面，并超出边界
+     * @param g Graphics对象，用于绘图
+     */
+    private void drawGameOverAnimation(Graphics g) {
+        int extraRows = fillRowAnimation / Config.BOARD_WIDTH;
+        int extraCols = fillRowAnimation % Config.BOARD_WIDTH;
+
+        for (int i = Config.BOARD_HEIGHT - 1; i >= -extraRows; i--) {
+            for (int j = 0; j < Config.BOARD_WIDTH + extraCols; j++) {
+                int x = j - extraCols;
+                int y = i + extraRows;
+                if (x >= 0 && x < Config.BOARD_WIDTH && y >= 0 && y < Config.BOARD_HEIGHT) {
+                    drawSquare(g, x * Config.BLOCK_SIZE, y * Config.BLOCK_SIZE, Color.RED);
+                }
+            }
+        }
+
+        if (fillRowAnimation >= Config.BOARD_WIDTH * Config.BOARD_HEIGHT) {
+            // 动画结束，清除游戏板
+            board = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
+            gameOver = false;
+            fillRowAnimation = 0;
+            initGame();
+            timer.start();
+        } else {
+            fillRowAnimation++;
+        }
+    }
+
+    /**
+     * 绘制游戏面板的方法
+     * 遍历二维数组board，绘制每个非空方块为红色
+     * @param g Graphics对象，用于绘图
+     */
+    private void drawBoard(Graphics g) {
+        for (int i = 0; i < Config.BOARD_HEIGHT; i++) {
+            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                if (board[i][j] != 0) {
+                    drawSquare(g, j * Config.BLOCK_SIZE, i * Config.BLOCK_SIZE, Color.RED);
+                }
+            }
+        }
+        // 如果当前方块不为空，则绘制当前方块
+        if (currentPiece != null) {
+            drawPiece(g, currentPiece);
+        }
+    }
+
+    /**
+     * 绘制当前方块的方法
+     * 根据方块的形状和位置，绘制每个非空部分为蓝色
+     * @param g Graphics对象，用于绘图
+     * @param piece 当前方块对象
+     */
+    private void drawPiece(Graphics g, Tetromino piece) {
+        int x = piece.getX();
+        int y = piece.getY();
+        int[][] shape = piece.getShape();
+
+        // 获取 shape 数组的实际大小
+        int rows = shape.length;
+        int cols = shape[0].length;
+        // 打印方块的位置和形状，用于调试
+//        System.out.println("Drawing piece at (" + x + ", " + y + ") with shape:");
+//        for (int[] row : shape) {
+//            System.out.println(Arrays.toString(row));
+//        }
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (shape[i][j] != 0) {
+                    drawSquare(g, (x + j) * Config.BLOCK_SIZE, (y + i) * Config.BLOCK_SIZE, piece);
+//                    drawSquare(g, (x + j) * Config.BLOCK_SIZE, (y + i) * Config.BLOCK_SIZE, Color.GRAY);
+
+                }
+            }
+        }
+    }
+
+    /**
+     * 绘制单个方块的方法
+     * 根据指定的位置和颜色，绘制一个方块，并添加边框效果
+     * @param g Graphics对象，用于绘图
+     * @param x 方块的x坐标
+     * @param y 方块的y坐标
+     * @param shape 方块的颜色
+     */
+//    private void drawSquare(Graphics g, int x, int y, Color color) {
+//        g.setColor(color);
+//        g.fillRect(x + 1, y + 1, Config.BLOCK_SIZE - 2, Config.BLOCK_SIZE - 2);
+//        g.setColor(color.brighter());
+//        g.drawLine(x, y + Config.BLOCK_SIZE - 1, x, y);
+//        g.drawLine(x, y, x + Config.BLOCK_SIZE - 1, y);
+//        g.setColor(color.darker());
+//        g.drawLine(x + 1, y + Config.BLOCK_SIZE - 1, x + Config.BLOCK_SIZE - 1, y + Config.BLOCK_SIZE - 1);
+//        g.drawLine(x + Config.BLOCK_SIZE - 1, y + Config.BLOCK_SIZE - 1, x + Config.BLOCK_SIZE - 1, y + 1);
+//    }
+    private void drawSquare(Graphics g, int x, int y, Tetrominoe shape) {
+        Color color = getColor(shape);
+
+        Graphics2D g2d = (Graphics2D) g.create();
+        g2d.setColor(color);
+        g2d.fillRect(x + 1, y + 1, squareWidth() - 2, squareHeight() - 2);
+
+        g2d.setColor(color.brighter());
+        g2d.drawLine(x, y + squareHeight() - 1, x, y);
+        g2d.drawLine(x, y, x + squareWidth() - 1, y);
+
+        g2d.setColor(color.darker());
+        g2d.drawLine(x + 1, y + squareHeight() - 1, x + squareWidth() - 1, y + squareHeight() - 1);
+        g2d.drawLine(x + squareWidth() - 1, y + squareHeight() - 1, x + squareWidth() - 1, y + 1);
+
+        g2d.dispose();
+    }
+
+    private static Color getColor(Tetrominoe shape) {
+        Color[] colors = {new Color(0, 0, 0), new Color(204, 102, 102),
+                new Color(102, 204, 102), new Color(102, 102, 204),
+                new Color(204, 204, 102), new Color(204, 102, 204),
+                new Color(102, 204, 204), new Color(218, 170, 0)
+        };
+
+        Color color = colors[shape.ordinal()];
+
+        if (shape == Tetrominoe.Flash) {
+            color = Color.YELLOW; // 闪烁颜色
+        } else if (shape == Tetrominoe.Dissolving) {
+            color = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (shape.getAlpha() * 255));
+        }
+        return color;
+    }
+
+    private int squareWidth() {
+        return (int) getSize().getWidth() / Config.BOARD_WIDTH;
+    }
+
+    private int squareHeight() {
+        return (int) getSize().getHeight() / Config.BOARD_HEIGHT;
+    }
+    private Tetrominoe shapeAt(int x, int y) {
+        return board[(y * Config.BOARD_WIDTH) + x];
+    }
+    /**
+     * 尝试移动方块的方法
+     * 检查方块在新位置是否合法，如果合法则更新方块的位置并重新绘制游戏界面
+     * @param newPiece 新的方块对象
+     * @param newX 方块的新x坐标
+     * @param newY 方块的新y坐标
+     * @return 如果移动成功则返回true，否则返回false
+     */
+    private boolean tryMove(Shape newPiece, int newX, int newY) {
+        for (int i = 0; i < 4; i++) {
+            int x = newX + newPiece.x(i);
+            int y = newY - newPiece.y(i);
+            if (x < 0 || x >= Config.BOARD_WIDTH || y < 0 || y >= Config.BOARD_HEIGHT)
+                return false;
+            if (shapeAt(x, y) != Tetrominoe.NoShape)
+                return false;
+        }
+
+        curPiece = newPiece;
+        curX = newX;
+        curY = newY;
+        repaint();
+        return true;
+    }
+//    private boolean tryMove(Tetromino newPiece, int newX, int newY) {
+//        int[][] shape = newPiece.getShape();
+//        for (int i = 0; i < shape.length; i++) {
+//            for (int j = 0; j < shape[i].length; j++) {
+//                if (shape[i][j] != 0) {
+//                    int x = newX + j;
+//                    int y = newY + i; // 修改为 +i
+//                    if (x < 0 || x >= Config.BOARD_WIDTH || y < 0 || y >= Config.BOARD_HEIGHT) {
+//                        return false;
+//                    }
+//                    if (board[y][x] != 0) {
+//                        return false;
+//                    }
+//                }
+//            }
+//        }
+//        currentPiece = newPiece;
+//        currentPiece.setX(newX);
+//        currentPiece.setY(newY);
+//        repaint();
+//        return true;
+//    }
+
+    /**
+     * 处理方块下落一行的动作
+     * 如果方块无法下落，则调用pieceDropped方法
+     */
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if (isFallingFinished) {
+            isFallingFinished = false;
+            newPiece();
+        } else {
+            oneLineDown();
+        }
+    }
+//    @Override
+//    public void actionPerformed(ActionEvent e) {
+//        if (gameOver) {
+//            repaint();
+//        } else {
+//            oneLineDown();
+////            System.out.println("Timer tick"); // 添加调试信息
+//        }
+//    }
+
+    /**
+     * 方块下落一行的方法
+     * 如果方块无法下落，则调用pieceDropped方法
+     */
+    private void oneLineDown() {
+        if (!tryMove(curPiece, curX, curY - 1))
+            pieceDropped();
+    }
+//    private void oneLineDown() {
+//        if (!tryMove(currentPiece, currentPiece.getX(), currentPiece.getY() + 1)) { // 修改为 +1
+//            pieceDropped();
+//        }
+//    }
+
+    private void start() {
+        if (isPaused)
+            return;
+
+        isStarted = true;
+        isFallingFinished = false;
+        numLinesRemoved = 0;
+        statusbar.setText(String.valueOf(numLinesRemoved));
+
+        newPiece();
+        timer.start();
+    }
+private void pause() {
+    if (!isStarted)
+        return;
+
+    isPaused = !isPaused;
+    if (isPaused) {
+        timer.stop();
+        statusbar.setText("paused");
+    } else {
+        timer.start();
+        statusbar.setText(String.valueOf(numLinesRemoved));
+    }
+    repaint();
+}
+    /**
+     * 处理方块掉落到底部的方法
+     * 更新游戏面板，移除满行，并创建新的方块
+     */
+    private void pieceDropped() {
+        for (int i = 0; i < 4; i++) {
+            int x = curX + curPiece.x(i);
+            int y = curY - curPiece.y(i);
+            board[(y * Config.BOARD_WIDTH) + x] = curPiece.getShape();
+        }
+
+        removeFullLines();
+
+        if (!isFallingFinished)
+            newPiece();
+    }
+
+    private void newPiece() {
+        curPiece.setRandomShape();
+        curX = Config.BOARD_WIDTH / 2 + 1;
+        curY = Config.BOARD_HEIGHT - 1 + curPiece.minY();
+
+        if (!tryMove(curPiece, curX, curY)) {
+            curPiece.setShape(Tetrominoe.NoShape);
+            timer.stop();
+            isStarted = false;
+            statusbar.setText("game over");
+        }
+    }
+    private void removeFullLines() {
+        int numFullLines = 0;
+
+        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+            boolean lineIsFull = true;
+
+            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                if (shapeAt(j, i) == Tetrominoe.NoShape) {
+                    lineIsFull = false;
+                    break;
+                }
+            }
+
+            if (lineIsFull) {
+                numFullLines++;
+
+                for (int k = i; k < Config.BOARD_HEIGHT - 1; k++) {
+                    for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                        board[(k * Config.BOARD_WIDTH) + j] = shapeAt(j, k + 1);
+                    }
+                }
+            }
+        }
+
+        if (numFullLines > 0) {
+            numLinesRemoved += numFullLines;
+            statusbar.setText(String.valueOf(numLinesRemoved));
+            isFallingFinished = true;
+            curPiece.setShape(Tetrominoe.NoShape);
+            repaint();
+            flashAndDissolveLines(numFullLines);
+        }
+    }
+//    private void pieceDropped() {
+//        int[][] shape = currentPiece.getShape();
+//        for (int i = 0; i < shape.length; i++) { // 使用 shape.length 而不是固定的 4
+//            for (int j = 0; j < shape[i].length; j++) { // 使用 shape[i].length 而不是固定的 4
+//                if (shape[i][j] != 0) {
+//                    int y = currentPiece.getY() + i;
+//                    int x = currentPiece.getX() + j;
+//                    if (y >= 0 && y < Config.BOARD_HEIGHT && x >= 0 && x < Config.BOARD_WIDTH) {
+//                        board[y][x] = 1;
+//                    } else {
+//                        // 可以在这里添加日志或处理异常情况
+//                        System.out.println("Index out of bounds: y=" + y + ", x=" + x);
+//                    }
+//                }
+//            }
+//        }
+//        removeFullLines();
+//        createNewPiece();
+//    }
+
+    /**
+     * 移除满行的方法
+     * 检查游戏面板是否有满行，如果有则移除，并将上方的行向下移动
+     */
+//    private void removeFullLines() {
+//        int numFullLines = 0;
+//        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+//            boolean lineIsFull = true;
+//            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+//                if (board[i][j] == 0) {
+//                    lineIsFull = false;
+//                    break;
+//                }
+//            }
+//            if (lineIsFull) {
+//                numFullLines++;
+//                // 将上面的行逐行向下移动
+//                for (int k = i; k < Config.BOARD_HEIGHT - 1; k++) {
+//                    System.arraycopy(board[k + 1], 0, board[k], 0, Config.BOARD_WIDTH);
+//                    // 调试信息：打印移动后的行
+//                    System.out.println("Moved row " + (k + 1) + " to row " + k);
+//                }
+//                // 最上面的一行清零
+//                Arrays.fill(board[Config.BOARD_HEIGHT - 1], 0);
+//                // 调试信息：打印清零后的行
+//                System.out.println("Cleared row " + (Config.BOARD_HEIGHT - 1));
+//            }
+//        }
+//        if (numFullLines > 0) {
+//            repaint();
+//        }
+//    }
+//    private void removeFullLines() {
+//        int numFullLines = 0;
+//
+//        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+//            boolean lineIsFull = true;
+//
+//            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+//                if (shapeAt(j, i) == Tetrominoe.NoShape) {
+//                    lineIsFull = false;
+//                    break;
+//                }
+//            }
+//
+//            if (lineIsFull) {
+//                numFullLines++;
+//
+//                for (int k = i; k < Config.BOARD_HEIGHT - 1; k++) {
+//                    for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+//                        board[(k * Config.BOARD_WIDTH) + j] = shapeAt(j, k + 1);
+//                    }
+//                }
+//            }
+//        }
+//
+//        if (numFullLines > 0) {
+//            numLinesRemoved += numFullLines;
+//            statusbar.setText(String.valueOf(numLinesRemoved));
+//            isFallingFinished = true;
+//            curPiece.setShape(Tetrominoe.NoShape);
+//            repaint();
+//            flashAndDissolveLines(numFullLines);
+//        }
+//    }
+    private void flashAndDissolveLines(int numFullLines) {
+        Timer flashTimer = new Timer();
+        int flashCount = 0;
+        int totalFlashes = 3; // 闪烁次数
+        int dissolveSteps = 10; // 溶解步骤数
+
+        flashTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (flashCount < totalFlashes * 2) {
+                    if (flashCount % 2 == 0) {
+                        // 闪烁高亮
+                        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+                            boolean lineIsFull = true;
+                            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                                if (shapeAt(j, i) == Tetrominoe.NoShape) {
+                                    lineIsFull = false;
+                                    break;
+                                }
+                            }
+                            if (lineIsFull) {
+                                for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                                    board[(i * Config.BOARD_WIDTH) + j] = Tetrominoe.Flash;
+                                }
+                            }
+                        }
+                    } else {
+                        // 恢复原状
+                        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+                            boolean lineIsFull = true;
+                            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                                if (shapeAt(j, i) == Tetrominoe.NoShape) {
+                                    lineIsFull = false;
+                                    break;
+                                }
+                            }
+                            if (lineIsFull) {
+                                for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                                    board[(i * Config.BOARD_WIDTH) + j] = Tetrominoe.Filled;
+                                }
+                            }
+                        }
+                    }
+                    flashCount++;
+                    repaint();
+                } else {
+                    flashTimer.cancel();
+                    dissolveLines(numFullLines, dissolveSteps);
+                }
+            }
+        }, 0, 200); // 每200毫秒闪烁一次
+    }
+    private void dissolveLines(int numFullLines, int steps) {
+        Timer dissolveTimer = new Timer();
+        int dissolveStep = 0;
+
+        dissolveTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (dissolveStep < steps) {
+                    float alpha = 1.0f - (float) (dissolveStep + 1) / steps;
+                    for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+                        boolean lineIsFull = true;
+                        for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                            if (shapeAt(j, i) == Tetrominoe.NoShape) {
+                                lineIsFull = false;
+                                break;
+                            }
+                        }
+                        if (lineIsFull) {
+                            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                                board[(i * Config.BOARD_WIDTH) + j] = Tetrominoe.Dissolving;
+                                board[(i * Config.BOARD_WIDTH) + j].setAlpha(alpha);
+                            }
+                        }
+                    }
+                    dissolveStep++;
+                    repaint();
+                } else {
+                    dissolveTimer.cancel();
+                    clearLines(numFullLines);
+                }
+            }
+        }, 0, 100); // 每100毫秒溶解一步
+    }
+    private void clearLines(int numFullLines) {
+        for (int i = Config.BOARD_HEIGHT - 1; i >= 0; i--) {
+            boolean lineIsFull = true;
+            for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                if (shapeAt(j, i) == Tetrominoe.NoShape) {
+                    lineIsFull = false;
+                    break;
+                }
+            }
+            if (lineIsFull) {
+                for (int k = i; k < Config.BOARD_HEIGHT - 1; k++) {
+                    for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                        board[(k * Config.BOARD_WIDTH) + j] = shapeAt(j, k + 1);
+                    }
+                }
+                Arrays.fill(board, (Config.BOARD_HEIGHT - 1) * Config.BOARD_WIDTH, Config.BOARD_HEIGHT * Config.BOARD_WIDTH, Tetrominoe.NoShape);
+            }
+        }
+        fallLines();
+    }
+    private void fallLines() {
+        Timer fallTimer = new Timer(400,this);
+        int fallStep = 0;
+        int fallSteps = 10; // 下落步骤数
+
+        fallTimer.setRepeats(new TimerTask() {
+            @Override
+            public void run() {
+                if (fallStep < fallSteps) {
+                    for (int i = Config.BOARD_HEIGHT - 2; i >= 0; i--) {
+                        for (int j = 0; j < Config.BOARD_WIDTH; j++) {
+                            if (shapeAt(j, i) != Tetrominoe.NoShape && shapeAt(j, i + 1) == Tetrominoe.NoShape) {
+                                board[((i + 1) * Config.BOARD_WIDTH) + j] = shapeAt(j, i);
+                                board[(i * Config.BOARD_WIDTH) + j] = Tetrominoe.NoShape;
+                            }
+                        }
+                    }
+                    fallStep++;
+                    repaint();
+                } else {
+                    fallTimer.cancel();
+                    isFallingFinished = true;
+                    curPiece.setShape(Tetrominoe.NoShape);
+                    repaint();
+                }
+            }
+        }, 0, 100); // 每100毫秒下落一步
+    }
+    /**
+     * 处理键盘事件的方法
+     * 根据用户按下的键，执行相应的动作
+     */
+    private class TAdapter extends KeyAdapter {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            int keycode = e.getKeyCode();
+            if (gameOver) {
+                if (keycode == KeyEvent.VK_SPACE) {
+                    gameOver = false;
+                    initGame();
+                    timer.start();
+                }
+            } else {
+                switch (keycode) {
+                    case KeyEvent.VK_LEFT:
+                        tryMove(currentPiece, currentPiece.getX() - 1, currentPiece.getY());
+                        break;
+                    case KeyEvent.VK_RIGHT:
+                        tryMove(currentPiece, currentPiece.getX() + 1, currentPiece.getY());
+                        break;
+                    case KeyEvent.VK_DOWN:
+                        tryMove(currentPiece.rotateRight(), currentPiece.getX(), currentPiece.getY());
+                        break;
+                    case KeyEvent.VK_UP:
+                        tryMove(currentPiece.rotateLeft(), currentPiece.getX(), currentPiece.getY());
+                        break;
+                    case KeyEvent.VK_SPACE:
+                        dropDown();
+                        break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 方块快速下落到底部的方法
+     * 将方块快速移动到到底部的位置，并调用pieceDropped方法
+     */
+//    private void dropDown() {
+//        int newY = currentPiece.getY();
+//        while (newY < Config.BOARD_HEIGHT && tryMove(currentPiece, currentPiece.getX(), newY)) { // 修改为 < Config.BOARD_HEIGHT
+//            newY++;
+//        }
+//        pieceDropped();
+//    }
+    private void dropDown() {
+        int newY = curY;
+        while (newY > 0) {
+            if (!tryMove(curPiece, curX, newY - 1))
+                break;
+            newY--;
+        }
+        pieceDropped();
+    }
+}
