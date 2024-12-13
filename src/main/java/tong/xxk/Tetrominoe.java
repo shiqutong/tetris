@@ -37,6 +37,7 @@ public enum Tetrominoe {
             {0, 0, 1},
             {1, 1, 1}
     }),
+
     // 表示方块填充的状态
     Filled(new int[0][0]),
     // 表示方块闪烁的状态

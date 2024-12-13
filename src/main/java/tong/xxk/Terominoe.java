@@ -3,6 +3,15 @@ package tong.xxk;
 import java.util.Random;
 
 public class Terominoe {
+    // 定义常量来表示不同的形状
+    public static final int NO_SHAPE = 0;
+    public static final int Z_SHAPE = 1;
+    public static final int S_SHAPE = 2;
+    public static final int LINE_SHAPE = 3;
+    public static final int T_SHAPE = 4;
+    public static final int SQUARE_SHAPE = 5;
+    public static final int L_SHAPE = 6;
+    public static final int MIRRORED_L_SHAPE = 7;
     private static final int[][][] SHAPES = {
             {{1, 1, 1, 1}},
             {{1, 1}, {1, 1}},
