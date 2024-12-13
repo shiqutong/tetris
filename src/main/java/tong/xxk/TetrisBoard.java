@@ -15,16 +15,10 @@ public class TetrisBoard extends JPanel implements ActionListener {
     private Timer timer;
     private Terominoe currentPiece;
     private int[][] board;
-    private boolean gameOver;
-    private static final int BLOCK_SIZE = 30; // 方块大小为 30x30 像素
     private GameState state;
 
     public TetrisBoard() {
         initBoard();
-        initGame();
-        setPreferredSize(new Dimension(Config.BOARD_WIDTH * Config.BLOCK_SIZE, Config.BOARD_HEIGHT * Config.BLOCK_SIZE));
-        setMaximumSize(new Dimension(Config.BOARD_WIDTH * Config.BLOCK_SIZE, Config.BOARD_HEIGHT * Config.BLOCK_SIZE));
-        setMinimumSize(new Dimension(Config.BOARD_WIDTH * Config.BLOCK_SIZE, Config.BOARD_HEIGHT * Config.BLOCK_SIZE));
     }
 
     // 获取当前游戏状态
@@ -42,24 +36,17 @@ public class TetrisBoard extends JPanel implements ActionListener {
      * 该方法在游戏启动时被调用，用于初始化游戏界面和游戏循环
      */
     private void initBoard() {
+        setLayout(new BorderLayout()); // 设置布局管理器
+        setPreferredSize(new Dimension(Config.GamePanel_WIDTH, Config.GamePanel_HEIGHT));
         // 设置面板为可聚焦，以便接收键盘事件
         setFocusable(true);
         // 添加键盘事件监听器，用于处理键盘事件
         addKeyListener(new TAdapter());
         // 设置背景色为黑色，以便在游戏面板上清晰地显示游戏元素
-        setBackground(Color.orange);
+        setBackground(Color.BLACK);
         // 设置双缓冲，以减少图形绘制时的闪烁现象
         setDoubleBuffered(true);
-        // 创建并启动定时器，用于控制游戏循环
-        timer = new Timer(400, e -> {
-            if (!gameOver) {
-                oneLineDown();
-            } else {
-                timer.stop();
-            }
-        });
-        timer.start();
-        setBorder(new LineBorder(Color.WHITE, 2));
+        setBorder(new LineBorder(Color.yellow, 1));
         setState(GameState.START);
         }
     /**
@@ -69,10 +56,16 @@ public class TetrisBoard extends JPanel implements ActionListener {
    public void initGame() {
         board = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
         createNewPiece();
-        // 确保定时器启动
+      // 创建并启动定时器，用于控制游戏循环
+        timer = new Timer(400, e -> {
+            if (getState()!=GameState.GAME_OVER) {
+                oneLineDown();
+            } else {
+                timer.stop();
+            }
+        });
         timer.start();
         setState(GameState.RUNNING);
-        gameOver = false;
     }
     /**
      * 创建一个新的四联立方块
@@ -83,14 +76,8 @@ public class TetrisBoard extends JPanel implements ActionListener {
         currentPiece = new Terominoe();
         if (!tryMove(currentPiece, Config.BOARD_WIDTH / 2, 0)) { // 修改为 0
             timer.stop();
-            gameOver = true;
+            setState(GameState.GAME_OVER);
             repaint();
-            // 显示游戏结束对话框
-//            JOptionPane.showMessageDialog(this, "Game Over", "Game Over", JOptionPane.INFORMATION_MESSAGE);
-            // 清空游戏板
-            board = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
-            // 重新初始化游戏
-//            initGame();
         }
     }
 
@@ -110,24 +97,40 @@ public class TetrisBoard extends JPanel implements ActionListener {
         }
     }
     private void doDrawing(Graphics g) {
-        if (!gameOver) {
+        if (getState() == GameState.RUNNING) {
             drawBoard(g);
-        } else {
-            setState(GameState.GAME_OVER);
+        } else if (getState() == GameState.GAME_OVER||getState()==GameState.START){
             drawGameOver(g);
         }
     }
     private void drawGameOver(Graphics g) {
         // 绘制 "GAME OVER" 图案
-        String gameOverText = "GAME OVER";
-        Font font = new Font("Arial", Font.BOLD, 24);
+        String gameOverText = "俄罗斯方块";
+        String gameOverText2 = "TETRIS";
+        Font font = new Font("SimSun", Font.BOLD, 10);
         g.setFont(font);
-        g.setColor(Color.RED);
+        g.setColor(Color.GREEN);
         FontMetrics fm = g.getFontMetrics();
+
+        // 计算第一行文字的宽度和高度
         int textWidth = fm.stringWidth(gameOverText);
-        int textHeight = fm.getAscent();
-        g.drawString(gameOverText, (Config.BOARD_WIDTH * BLOCK_SIZE - textWidth) / 2, (Config.BOARD_HEIGHT * BLOCK_SIZE + textHeight) / 2);
-        System.out.println("Drawing piece GAME OVER:");
+        int textHeight = fm.getHeight();
+
+        // 计算第一行文字的 y 坐标
+        int y1 = (Config.BOARD_HEIGHT * Config.BLOCK_SIZE + textHeight) / 2;
+
+        // 绘制第一行文字
+        g.drawString(gameOverText, (Config.BOARD_WIDTH * Config.BLOCK_SIZE - textWidth) / 2, y1-20);
+
+        // 计算第二行文字的宽度和高度
+        int textWidth2 = fm.stringWidth(gameOverText2);
+        int textHeight2 = fm.getHeight();
+
+        // 计算第二行文字的 y 坐标，加上第一行文字的高度
+        int y2 = y1 + textHeight;
+
+        // 绘制第二行文字
+        g.drawString(gameOverText2, (Config.BOARD_WIDTH * Config.BLOCK_SIZE - textWidth2) / 2, y2);
     }
     /**
      * 绘制游戏面板的方法
@@ -135,7 +138,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
      * @param g Graphics对象，用于绘图
      */
     private void drawBoard(Graphics g) {
-        if (gameOver) {
+        if (!(getState() == GameState.RUNNING)) {
             return; // 如果游戏结束，则不执行定时器动作
         }
         for (int i = 0; i < Config.BOARD_HEIGHT; i++) {
@@ -157,7 +160,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
      * @param piece 当前方块对象
      */
     private void drawPiece(Graphics g, Terominoe piece) {
-        if (gameOver) {
+        if (getState() == GameState.GAME_OVER) {
             return; // 如果游戏结束，则不执行定时器动作
         }
         int x = piece.getX();
@@ -242,7 +245,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (gameOver) {
+        if (getState() == GameState.GAME_OVER) {
             return; // 如果游戏结束，则不执行定时器动作
         }
         oneLineDown();
@@ -253,7 +256,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
      * 如果方块无法下落，则调用pieceDropped方法
      */
     private void oneLineDown() {
-        if (gameOver) {
+        if (getState() == GameState.GAME_OVER) {
             return; // 如果游戏结束，则不执行一行下降的逻辑
         }
         if (!tryMove(currentPiece, currentPiece.getX(), currentPiece.getY() + 1)) { // 修改为 +1
@@ -281,7 +284,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
             }
         }
         removeFullLines();
-        if (!gameOver) {
+        if (getState() == GameState.RUNNING) {
             createNewPiece();
         }
     }
@@ -345,6 +348,31 @@ public class TetrisBoard extends JPanel implements ActionListener {
        setState(GameState.RUNNING);
     }
 
+    /**
+     * 获取当前的得分
+     *
+     * 此方法用于返回当前游戏或应用中的得分情况
+     * 返回值为null表示尚未实现具体的得分逻辑或数据
+     *
+     * @return 当前得分的字符串表示，如果未实现则返回null
+     */
+    public String getScore() {
+        return null;
+    }
+
+    /**
+     * 获取当前的等级
+     *
+     * 此方法用于返回当前游戏或应用中的等级情况
+     * 返回值为null表示尚未实现具体的等级逻辑或数据
+     *
+     * @return 当前等级的字符串表示，如果未实现则返回null
+     */
+    public String getLevel() {
+        return null;
+    }
+
+
 
     /**
      * 处理键盘事件的方法
@@ -353,7 +381,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
     private class TAdapter extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e) {
-            if (gameOver) {
+            if (!(getState() == GameState.RUNNING)) {
                 return;
             }
             int keycode = e.getKeyCode();
