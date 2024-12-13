@@ -48,11 +48,11 @@ public class Main {
         // 创建并添加 controlPanel
         gbc.gridx = 0;
         gbc.gridy = 1;
-        gbc.gridwidth = 1; // 跨越两列
+        gbc.gridwidth = 2; // 跨越两列
         gbc.gridheight = 1;
         gbc.weightx = 0.0;
         gbc.weighty = 0.0; // 可以根据需要调整高度比例
-//        gbc.anchor = GridBagConstraints.SOUTHWEST;
+        gbc.anchor = GridBagConstraints.SOUTHWEST;
         frame.add(controlPanel, gbc);
 
         frame.setResizable(false);  // 禁用窗口调整大小

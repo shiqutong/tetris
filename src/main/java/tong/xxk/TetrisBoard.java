@@ -42,13 +42,12 @@ public class TetrisBoard extends JPanel implements ActionListener {
         setFocusable(true);
         // 添加键盘事件监听器，用于处理键盘事件
         addKeyListener(new TAdapter());
-        // 设置背景色为黑色，以便在游戏面板上清晰地显示游戏元素
-        setBackground(Color.BLACK);
         // 设置双缓冲，以减少图形绘制时的闪烁现象
         setDoubleBuffered(true);
         setBorder(new LineBorder(Color.yellow, 1));
         setState(GameState.START);
-        }
+    }
+
     /**
      * 初始化游戏状态
      * 此方法在游戏开始时调用，用于设置游戏的初始状态
@@ -89,6 +88,11 @@ public class TetrisBoard extends JPanel implements ActionListener {
     protected void paintComponent(Graphics g) {
         // 调用父类的paintComponent方法，确保基本绘制工作已经完成
         super.paintComponent(g);
+        // 绘制渐变背景
+        Graphics2D g2d = (Graphics2D) g;
+        GradientPaint gradientPaint = new GradientPaint(0, 0, new Color(50, 50, 50), getWidth(), getHeight(), new Color(100, 100, 100));
+        g2d.setPaint(gradientPaint);
+        g2d.fillRect(0, 0, getWidth(), getHeight());
         // 绘制游戏棋盘
         doDrawing(g);
         // 如果当前棋子不为空，则绘制当前棋子
@@ -107,7 +111,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
         // 绘制 "GAME OVER" 图案
         String gameOverText = "俄罗斯方块";
         String gameOverText2 = "TETRIS";
-        Font font = new Font("SimSun", Font.BOLD, 10);
+        Font font = new Font("SimSun", Font.BOLD, 18);
         g.setFont(font);
         g.setColor(Color.GREEN);
         FontMetrics fm = g.getFontMetrics();
@@ -130,7 +134,7 @@ public class TetrisBoard extends JPanel implements ActionListener {
         int y2 = y1 + textHeight;
 
         // 绘制第二行文字
-        g.drawString(gameOverText2, (Config.BOARD_WIDTH * Config.BLOCK_SIZE - textWidth2) / 2, y2);
+        g.drawString(gameOverText2, (Config.BOARD_WIDTH * Config.BLOCK_SIZE - textWidth2) / 2, y2-20);
     }
     /**
      * 绘制游戏面板的方法

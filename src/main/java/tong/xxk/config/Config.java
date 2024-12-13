@@ -8,12 +8,12 @@ public class Config {
     public static final int FrameWIDTH = 400;
     public static final int FrameHEIGHT = 600;
 
-    public static final int StatusPANEL_WIDTH = 180;
-    public static final int StatusPANEL_HEIGHT = 150;
-    public static final int ControlPanel_WIDTH = 100;
-    public static final int ControlPanel_HEIGHT = 100;
+    public static final int StatusPANEL_WIDTH = 160;
+    public static final int StatusPANEL_HEIGHT = 450;
+    public static final int ControlPanel_WIDTH = 380;
+    public static final int ControlPanel_HEIGHT = 110;
 
-    public static int GamePanel_WIDTH=200;
+    public static int GamePanel_WIDTH=220;
     public static int GamePanel_HEIGHT=450;
 
 
